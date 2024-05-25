@@ -1,6 +1,6 @@
 
 #include "../include/netHeader.h"
-#include<unistd.h>
+#include <unistd.h>
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -8,7 +8,59 @@
 #include <strings.h>
 #include <cstring>
 #include <cassert>
+
 using namespace std;
+
+void str_cli(int sock_fd)
+{
+    // 1.从标准输入接受数据，发送到服务器套接字上。
+    /**这个版本采用cin接受标准输入的数据。
+     * cin的特点是，每次调用都会跳过开头的空白，然后读取遇到空白符时，结束此次读取。
+     * 空白会被保留在标准输入的缓冲区中。如果下次读取的话没有忽略空白的机制，将会读取到上次遗留的空白。
+     */
+    string buffer{};
+    int nwrite{};
+    int nread{};
+    char bufs[BUFFSIZE];
+    bzero(bufs, sizeof(bufs));
+    while (cin >> bufs)
+    {
+        // 2.将读取到的数据写入到scoket套接字中。
+
+        if ((nwrite = write(sock_fd, bufs, sizeof(bufs))) < 0)
+        {
+            err_sys("str_cli: write");
+        }
+        // 3.从socket读取服务器回显的数据，一次读取可能不完整，需要持续读取。
+        while (true)
+        {
+            bzero(bufs, sizeof(bufs));
+            nread = read(sock_fd, bufs, BUFFSIZE);
+            // 如果读取遭受中断。应该继续读取。
+            if (nread < 0 && errno == EINTR)
+            {
+                continue;
+            }
+            // 读取出错。
+            else if (nread < 0)
+            {
+                err_sys("str_cli: read");
+            }
+            // 达到空终止，读取结束
+            else if (nread == 0)
+            {
+                break;
+            }
+            // 如果读取数小于BUFFSIZE，说明已经读取所有数据。
+            if (nread <= BUFFSIZE)
+            {
+                // 4.将读取到的数据写到标准输出。
+                cout << bufs << endl;
+                break;
+            }
+        }
+    }
+}
 
 int main()
 {
@@ -18,7 +70,7 @@ int main()
 
     int client_fd;
 
-    //成功时返回fd（非负），失败返回-1
+    // 成功时返回fd（非负），失败返回-1
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         err_sys("socket error");
@@ -41,26 +93,6 @@ int main()
     {
         err_sys("connect error");
     }
-
-    // 收发数据
-    int nBytes;
-    // 缓冲区
-    string send_buffer{};
-    send_buffer.resize(BUFFSIZE);
-    string recv_buffer{};
-    recv_buffer.resize(BUFFSIZE);
-    /* c_str：返回一个null终止const字符数组，修改其内容未定义，
-    c++17q前要想修改：使用&str[0]的形式。c++17后使用data的非const重载版本 */
-    while ((nBytes = recv(client_fd,&recv_buffer[0],recv_buffer.size(),0)) > 0) // when还能成功读到数据：
-    {
-        cout << recv_buffer << '\n';
-    }
-    
-    if ( nBytes < 0 )
-    {
-        err_sys("recv error");
-    }
-    // 引用计数减一，为0时关闭。
+    str_cli(client_fd);
     close(client_fd);
-    exit(0);
 }

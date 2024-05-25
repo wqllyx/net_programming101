@@ -1,4 +1,4 @@
-#include "netHeader.h"
+#include "../include/netHeader.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -6,8 +6,41 @@
 #include <string>
 #include <strings.h>
 #include <iostream>
-#include<ctime>
 using namespace std;
+
+void Echo(int sock_fd)
+{
+    // 1.读取套接字上的数据，有可能一次读取不完整，需要循环读取。
+    string buffer{};
+    buffer.resize(BUFFSIZE);
+    int nread{};
+    int nwrite{};
+    while (true)
+    {
+        nread = read(sock_fd, buffer.data(), BUFFSIZE);
+        // 如果读取遭受中断。应该继续读取。
+        if (nread < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            if (errno == EAGAIN || errno == EINPROGRESS)
+            {
+                return;
+            }
+            err_sys("Echo: read");
+        }
+        // 对端关闭连接，返回0.TCP流没有终止标志。
+        else if (nread == 0)
+        {
+            break;
+        }
+        if ((nwrite = write(sock_fd, buffer.data(), nread)) < 0)
+        {
+            err_sys("Echo: write");
+        }
+    }
+}
+
 int main(/*int argc, char **argv*/)
 {
     // 固定IP和端口号
@@ -47,9 +80,6 @@ int main(/*int argc, char **argv*/)
     // 接受连接。
     cout << "准备开始服务： " << '\n';
 
-
-    
-
     // string recv_buffer{};
     // recv_buffer.resize(BUFFSIZE);
     string send_buffer{};
@@ -58,7 +88,6 @@ int main(/*int argc, char **argv*/)
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
     int acceptfd;
-    time_t ticks;
     while (true)
     {
 
@@ -66,7 +95,6 @@ int main(/*int argc, char **argv*/)
         {
             err_sys("accept error");
         }
-        ticks = time(nullptr);
         // 打印已经接受的客户端地址信息（可选）：
         string client_ip{};
         client_ip.resize(INET_ADDRSTRLEN);
@@ -77,22 +105,23 @@ int main(/*int argc, char **argv*/)
         cout << "新接受的客户端进程的ip地址是: " << client_ip << '\n';
         cout << "新接受的客户端进程的端口号是： " << ntohs(client_addr.sin_port) << '\n';
 
-
-
-
-
-        // // 读取客户端发送的信息。
-        // cout << "客户端发送的消息是：" << '\n';
-        // int readN;
-        // while ((readN = recv(acceptfd, &recv_buffer[0], BUFFSIZE, 0)) > 0)
-        // {
-        //     cout << recv_buffer.c_str();
-        // }
-        // cout << endl;
-
-        // 向客户端发送时间
-        
-        snprintf(&send_buffer[0], send_buffer.size(), "%.24s\r\n", ctime(&ticks));
-        send(acceptfd, send_buffer.c_str(), send_buffer.size(), 0);
+        //  fork一个子进程处理连接请求。
+        int child_pid;
+        if ((child_pid = fork()) < 0)
+        {
+            err_sys("fork");
+        }
+        if (child_pid == 0)
+        {
+            // 关闭 服务器用于连接请求的套接字（监听套接字）。
+            close(server_socket);
+            // 调用echo处理请求。
+            Echo(acceptfd);
+            // 当处理结束时，打印被处理的客户端的信息。
+            cout << "客户端ip: " << client_ip << " 端口号：" << ntohs(client_addr.sin_port) << " 断开连接" << '\n';
+            exit(0);
+        }
+        // 父进程关闭acceptfd套接字。
+        close(acceptfd);
     }
 }
