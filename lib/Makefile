@@ -1,4 +1,4 @@
-LIB_OBJS = error.o
+LIB_OBJS = error.o readn.o writen.o
 LIB_NAME = libtool.a
 RANLIB = ranlib
 CLEANFILES = core core.* *.core *.o temp.* *.out typescript* \
