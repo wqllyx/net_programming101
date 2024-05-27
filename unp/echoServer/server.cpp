@@ -1,4 +1,4 @@
-#include "../include/netHeader.h"
+#include "netHeader.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -57,7 +57,6 @@ int main(/*int argc, char **argv*/)
     // 2.设置socket地址（使用ip和端口号唯一标识标识服务器socket地址）
     struct sockaddr_in server_addr;
     bzero(&server_addr, sizeof(server_addr));
-
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(server_port);
     // 失败返回0

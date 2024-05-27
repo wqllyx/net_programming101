@@ -1,2 +1,7 @@
 # net_programming101
-unp learning
+unp： 里面是服务器项目的代码。所有的代码都是服务器项目的一部分。
+exercise： 里面是学习网络编程unp这本书的一些练习代码。每个文件都是一个单独的可运行文件。makefile 是为此目录写的。
+此目录下进一步分为主题子目录：子目录里各自有自己的makfile，包含exercise/Make.defines目录。
+连接的库在工作目录下。
+所以连接的路径(相对于每个主题目录而言)统一都是： ../../lib
+包含的头文件路径都是： ../../include

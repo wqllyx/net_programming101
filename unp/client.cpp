@@ -1,5 +1,4 @@
-
-#include "../include/netHeader.h"
+#include "netHeader.h"
 #include <unistd.h>
 #include <iostream>
 #include <sys/socket.h>
